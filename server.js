@@ -1,13 +1,16 @@
 const express = require('express');
-const bodyParser = require('body-parser');
+const multer = require('multer');
+
 const db = require('./db');
 
 const app = express();
+const upload = multer();
+
 const port = 8000;
 
-// Middleware for parsing JSON and URL-encoded data
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+// Middleware for parsing JSON and URL-encoded data (sin body-parser)
+app.use(express.json()); // Procesa application/json
+app.use(express.urlencoded({ extended: true })); // Procesa application/x-www-form-urlencoded
 
 // GET and POST for /students
 app.route('/students')
@@ -19,10 +22,15 @@ app.route('/students')
             res.json(rows);
         });
     })
-    .post((req, res) => {
+    .post(upload.none(),(req, res) => {
+        console.log('Request body:', req.body); // Print the request body for debugging
+
         const { firstname, lastname, gender, age } = req.body;
+        
+        console.log(firstname);
         db.run('INSERT INTO students (firstname, lastname, gender, age) VALUES (?, ?, ?, ?)', [firstname, lastname, gender, age], function (err) {
             if (err) {
+                console.error('Error inserting student:', err.message);
                 return res.status(500).send('Error inserting student');
             }
             res.status(201).send(`Student with id: ${this.lastID} created successfully`);
@@ -47,6 +55,9 @@ app.route('/student/:id')
     .put((req, res) => {
         const id = req.params.id;
         const { firstname, lastname, gender, age } = req.body;
+        if (!firstname || !lastname || !gender || !age) {
+            return res.status(400).send('All fields are required.');
+        }
         db.run('UPDATE students SET firstname = ?, lastname = ?, gender = ?, age = ? WHERE id = ?', [firstname, lastname, gender, age, id], function (err) {
             if (err) {
                 return res.status(500).send('Error updating student');
